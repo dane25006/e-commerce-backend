@@ -2,8 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class IsAdmin
@@ -15,7 +17,10 @@ class IsAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || !auth()->user()->isAdmin()) {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (!$user || !$user->isAdmin()) {
             return redirect()->route('admin.login')->withErrors(['email' => 'Unauthorized']);
         }
         return $next($request);
