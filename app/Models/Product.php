@@ -61,31 +61,40 @@ class Product extends Model
         'stock' => 'integer',
     ];
 
-    /**
-     * The category this product belongs to.
-     */
-    public function category(): BelongsTo
+
+    // ── Relationships ─────────────────────────────────────────
+    public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
-    public function orderItems(): HasMany
-    {
-        return $this->hasMany(OrderItem::class);
-    }
-
-    public function reviews(): HasMany
+    public function reviews()
     {
         return $this->hasMany(Review::class);
     }
 
-    public function wishlists(): HasMany
+    public function wishlists()
     {
         return $this->hasMany(Wishlist::class);
     }
 
-    public function cartItems(): HasMany
+    public function carts()
     {
         return $this->hasMany(Cart::class);
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    // Product.php
+    protected $appends = ['image_url'];
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image
+            ? asset('storage/' . $this->image)
+            : null;
     }
 }
