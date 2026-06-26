@@ -12,6 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->statefulApi();
+
+        $middleware->redirectGuestsTo(fn () => null);// ← fix: return 401 JSON instead of redirect to route('login')
+
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
+
         $middleware->alias([
             'admin' => \App\Http\Middleware\IsAdmin::class,
         ]);
