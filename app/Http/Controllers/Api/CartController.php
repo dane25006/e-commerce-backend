@@ -10,29 +10,32 @@ use Illuminate\Support\Facades\Storage;
 
 class CartController extends Controller
 {
-    // ── GET /api/cart  [auth:sanctum] ────────────────────────────────────
-    // Returns all cart items for the logged-in user with total
+    // ── GET /api/cart ─────────────────────────────────────────────────────
     public function index(Request $request)
     {
-        $items = Cart::where('user_id', $request->user()->id)
-            ->with('product.category')
-            ->get()
-            ->map(fn($c) => $this->formatItem($c));
+        $query = Cart::with('product.category');
 
+        if ($request->user()) {
+            $query->where('user_id', $request->user()->id);
+        } elseif ($request->filled('guest_token')) {
+            $query->where('guest_token', $request->guest_token);
+        } else {
+            return response()->json(['cart' => [], 'item_count' => 0, 'line_count' => 0, 'total' => 0]);
+        }
+
+        $items = $query->get()->map(fn($c) => $this->formatItem($c));
         $subtotal  = $items->sum(fn($i) => $i['subtotal']);
         $itemCount = $items->sum(fn($i) => $i['quantity']);
 
         return response()->json([
             'cart'       => $items,
-            'item_count' => $itemCount,   // total units (e.g. 3 qty = 3)
-            'line_count' => $items->count(), // distinct products in cart
+            'item_count' => $itemCount,
+            'line_count' => $items->count(),
             'total'      => round($subtotal, 2),
         ]);
     }
 
-    // ── POST /api/cart  [auth:sanctum] ───────────────────────────────────
-    // Body: { "product_id": 3, "quantity": 2 }
-    // If the product is already in the cart, quantity is added on top.
+    // ── POST /api/cart ────────────────────────────────────────────────────
     public function store(Request $request)
     {
         $request->validate([
@@ -40,129 +43,141 @@ class CartController extends Controller
             'quantity'   => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $userId    = $request->user()->id;
         $productId = $request->product_id;
         $quantity  = (int) $request->quantity;
+        $product   = Product::findOrFail($productId);
 
-        $product = Product::findOrFail($productId);
-
-        // Product must be in stock
         if ($product->stock === 0) {
-            return response()->json([
-                'message' => '"' . $product->name . '" is out of stock.',
-            ], 422);
+            return response()->json(['message' => '"' . $product->name . '" is out of stock.'], 422);
         }
 
-        // Check if already in cart
-        $existing = Cart::where('user_id', $userId)
-                        ->where('product_id', $productId)
-                        ->first();
+        $ownerId = $request->user() ? $request->user()->id : null;
+        $token   = $ownerId ? null : $request->input('guest_token');
+
+        if (! $ownerId && ! $token) {
+            return response()->json(['message' => 'Authentication required.'], 401);
+        }
+
+        $query = Cart::where('product_id', $productId);
+        if ($ownerId) {
+            $query->where('user_id', $ownerId);
+        } else {
+            $query->where('guest_token', $token);
+        }
+        $existing = $query->first();
 
         if ($existing) {
-            // Adding on top of what's already there
             $newQty = $existing->quantity + $quantity;
-
-            // New total cannot exceed available stock
             if ($product->stock < $newQty) {
                 return response()->json([
-                    'message' => 'Cannot add ' . $quantity . ' more. '
-                               . 'Only ' . ($product->stock - $existing->quantity)
-                               . ' more unit(s) available.',
+                    'message' => 'Cannot add ' . $quantity . ' more. Only '
+                        . ($product->stock - $existing->quantity) . ' more available.',
                 ], 422);
             }
-
             $existing->update(['quantity' => $newQty]);
             $cart = $existing->load('product.category');
-
         } else {
-            // First time adding this product
             if ($product->stock < $quantity) {
                 return response()->json([
-                    'message' => 'Not enough stock. Only '
-                               . $product->stock . ' unit(s) available.',
+                    'message' => 'Not enough stock. Only ' . $product->stock . ' available.',
                 ], 422);
             }
-
-            $cart = Cart::create([
-                'user_id'    => $userId,
-                'product_id' => $productId,
-                'quantity'   => $quantity,
-            ]);
-
+            $data = ['product_id' => $productId, 'quantity' => $quantity];
+            if ($ownerId) {
+                $data['user_id'] = $ownerId;
+            } else {
+                $data['guest_token'] = $token;
+            }
+            $cart = Cart::create($data);
             $cart->load('product.category');
         }
 
-        return response()->json([
-            'message' => 'Added to cart.',
-            'item'    => $this->formatItem($cart),
-        ], 201);
+        return response()->json(['message' => 'Added to cart.', 'item' => $this->formatItem($cart)], 201);
     }
 
-    // ── PUT /api/cart/{cart}  [auth:sanctum] ─────────────────────────────
-    // Body: { "quantity": 5 }
-    // Sets quantity to the exact value given (replaces, does not add).
+    // ── PUT /api/cart/{cart} ─────────────────────────────────────────────
     public function update(Request $request, Cart $cart)
     {
-        // Ownership check
-        if ($cart->user_id !== $request->user()->id) {
+        if (! $this->owns($request, $cart)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
-        $request->validate([
-            'quantity' => ['required', 'integer', 'min:1', 'max:100'],
-        ]);
-
+        $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:100']]);
         $newQty  = (int) $request->quantity;
         $product = $cart->product;
 
-        // Cannot set quantity higher than available stock
         if ($product->stock < $newQty) {
-            return response()->json([
-                'message' => 'Only ' . $product->stock . ' unit(s) in stock.',
-            ], 422);
+            return response()->json(['message' => 'Only ' . $product->stock . ' in stock.'], 422);
         }
 
         $cart->update(['quantity' => $newQty]);
-
-        return response()->json([
-            'message' => 'Cart updated.',
-            'item'    => $this->formatItem($cart->load('product.category')),
-        ]);
+        return response()->json(['message' => 'Cart updated.', 'item' => $this->formatItem($cart->load('product.category'))]);
     }
 
-    // ── DELETE /api/cart/{cart}  [auth:sanctum] ──────────────────────────
-    // Removes one specific cart line item
+    // ── DELETE /api/cart/{cart} ──────────────────────────────────────────
     public function destroy(Request $request, Cart $cart)
     {
-        // Ownership check
-        if ($cart->user_id !== $request->user()->id) {
+        if (! $this->owns($request, $cart)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
-
         $cart->delete();
-
-        return response()->json([
-            'message' => 'Item removed from cart.',
-        ]);
+        return response()->json(['message' => 'Item removed from cart.']);
     }
 
-    // ── DELETE /api/cart  [auth:sanctum] ─────────────────────────────────
-    // Clears the entire cart for the logged-in user
+    // ── DELETE /api/cart ─────────────────────────────────────────────────
     public function clear(Request $request)
     {
-        $deleted = Cart::where('user_id', $request->user()->id)->delete();
+        if ($request->user()) {
+            Cart::where('user_id', $request->user()->id)->delete();
+        } elseif ($request->filled('guest_token')) {
+            Cart::where('guest_token', $request->guest_token)->delete();
+        }
+        return response()->json(['message' => 'Cart cleared.']);
+    }
 
-        return response()->json([
-            'message' => 'Cart cleared.',
-            'removed' => $deleted,
-        ]);
+    // ── POST /api/cart/merge ─────────────────────────────────────────────
+    public function merge(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $token = $request->input('guest_token');
+        if (! $token) {
+            return response()->json(['message' => 'No guest cart to merge.'], 400);
+        }
+
+        $guestItems = Cart::where('guest_token', $token)->get();
+
+        foreach ($guestItems as $guest) {
+            $existing = Cart::where('user_id', $user->id)
+                ->where('product_id', $guest->product_id)
+                ->first();
+
+            if ($existing) {
+                $existing->increment('quantity', $guest->quantity);
+                $guest->delete();
+            } else {
+                $guest->update(['user_id' => $user->id, 'guest_token' => null]);
+            }
+        }
+
+        return response()->json(['message' => 'Cart merged successfully.']);
+    }
+
+    // ── Ownership check ──────────────────────────────────────────────────
+    private function owns(Request $request, Cart $cart): bool
+    {
+        if ($request->user() && $cart->user_id === $request->user()->id) return true;
+        if ($request->filled('guest_token') && $cart->guest_token === $request->guest_token) return true;
+        return false;
     }
 
     // ── Private helper ────────────────────────────────────────────────────
     private function formatItem(Cart $cart): array
     {
         $product = $cart->product;
-
         return [
             'cart_id'  => $cart->id,
             'quantity' => $cart->quantity,
@@ -173,13 +188,8 @@ class CartController extends Controller
                 'slug'      => $product->slug,
                 'price'     => (float) $product->price,
                 'stock'     => $product->stock,
-                'image_url' => $product->image
-                                    ? Storage::url($product->image)
-                                    : null,
-                'category'  => $product->category ? [
-                    'id'   => $product->category->id,
-                    'name' => $product->category->name,
-                ] : null,
+                'image_url' => $product->image ? Storage::url($product->image) : null,
+                'category'  => $product->category ? ['id' => $product->category->id, 'name' => $product->category->name] : null,
             ],
         ];
     }
