@@ -52,13 +52,21 @@ class Product extends Model
         'slug',
         'description',
         'price',
+        'sale_price',
         'stock',
+        'is_new',
         'image',
+        'gender',
+        'brand',
+        'type',
+        'department',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
-        'stock' => 'integer',
+        'price'      => 'decimal:2',
+        'sale_price' => 'decimal:2',
+        'stock'      => 'integer',
+        'is_new'     => 'boolean',
     ];
 
 
