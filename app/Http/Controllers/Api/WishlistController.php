@@ -10,142 +10,162 @@ use Illuminate\Support\Facades\Storage;
 
 class WishlistController extends Controller
 {
-    // ── GET /api/wishlist  [auth:sanctum] ────────────────────────────────
-    // Returns all wishlisted products for the logged-in user
+    // ── GET /api/wishlist ─────────────────────────────────────────────────
     public function index(Request $request)
     {
-        $items = Wishlist::where('user_id', $request->user()->id)
-            ->with('product.category')
-            ->latest()
-            ->get()
-            ->map(fn($w) => [
-                'wishlist_id' => $w->id,
-                'added_at'    => $w->created_at->toDateTimeString(),
-                'product'     => $this->formatProduct($w->product),
-            ]);
+        $query = Wishlist::with('product.category');
 
-        return response()->json([
-            'wishlist' => $items,
-            'count'    => $items->count(),
+        if ($request->user()) {
+            $query->where('user_id', $request->user()->id);
+        } elseif ($request->filled('guest_token')) {
+            $query->where('guest_token', $request->guest_token);
+        } else {
+            return response()->json(['wishlist' => [], 'count' => 0]);
+        }
+
+        $items = $query->latest()->get()->map(fn($w) => [
+            'wishlist_id' => $w->id,
+            'added_at'    => $w->created_at->toDateTimeString(),
+            'product'     => $this->formatProduct($w->product),
         ]);
+
+        return response()->json(['wishlist' => $items, 'count' => $items->count()]);
     }
 
-    // ── POST /api/wishlist  [auth:sanctum] ───────────────────────────────
-    // Body: { "product_id": 5 }
-    // Adds the product. If already wishlisted → returns 200 (idempotent).
+    // ── POST /api/wishlist ────────────────────────────────────────────────
     public function store(Request $request)
     {
-        $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
-        ]);
+        $request->validate(['product_id' => ['required', 'exists:products,id']]);
 
-        $userId    = $request->user()->id;
         $productId = $request->product_id;
+        $ownerId   = $request->user() ? $request->user()->id : null;
+        $token     = $ownerId ? null : $request->input('guest_token');
 
-        // Already in wishlist — return existing entry, no error
-        $existing = Wishlist::where('user_id', $userId)
-                            ->where('product_id', $productId)
-                            ->first();
-
-        if ($existing) {
-            return response()->json([
-                'message'      => 'Already in your wishlist.',
-                'wishlist_id'  => $existing->id,
-                'wishlisted'   => true,
-            ], 200);
+        if (! $ownerId && ! $token) {
+            return response()->json(['message' => 'Authentication required.'], 401);
         }
 
-        $wishlist = Wishlist::create([
-            'user_id'    => $userId,
-            'product_id' => $productId,
-        ]);
+        $query = Wishlist::where('product_id', $productId);
+        if ($ownerId) {
+            $query->where('user_id', $ownerId);
+        } else {
+            $query->where('guest_token', $token);
+        }
+        $existing = $query->first();
 
-        return response()->json([
-            'message'     => 'Added to wishlist.',
-            'wishlist_id' => $wishlist->id,
-            'wishlisted'  => true,
-        ], 201);
+        if ($existing) {
+            return response()->json(['message' => 'Already in your wishlist.', 'wishlist_id' => $existing->id, 'wishlisted' => true], 200);
+        }
+
+        $data = ['product_id' => $productId];
+        if ($ownerId) {
+            $data['user_id'] = $ownerId;
+        } else {
+            $data['guest_token'] = $token;
+        }
+        $wishlist = Wishlist::create($data);
+
+        return response()->json(['message' => 'Added to wishlist.', 'wishlist_id' => $wishlist->id, 'wishlisted' => true], 201);
     }
 
-    // ── POST /api/wishlist/toggle  [auth:sanctum] ────────────────────────
-    // Body: { "product_id": 5 }
-    // Adds if not wishlisted, removes if already wishlisted.
-    // Vue uses this for the heart button — one endpoint handles both states.
+    // ── POST /api/wishlist/toggle ─────────────────────────────────────────
     public function toggle(Request $request)
     {
-        $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
-        ]);
+        $request->validate(['product_id' => ['required', 'exists:products,id']]);
 
-        $userId    = $request->user()->id;
         $productId = $request->product_id;
+        $ownerId   = $request->user() ? $request->user()->id : null;
+        $token     = $ownerId ? null : $request->input('guest_token');
 
-        $existing = Wishlist::where('user_id', $userId)
-                            ->where('product_id', $productId)
-                            ->first();
+        if (! $ownerId && ! $token) {
+            return response()->json(['message' => 'Authentication required.'], 401);
+        }
+
+        $query = Wishlist::where('product_id', $productId);
+        if ($ownerId) {
+            $query->where('user_id', $ownerId);
+        } else {
+            $query->where('guest_token', $token);
+        }
+        $existing = $query->first();
 
         if ($existing) {
-            // Already wishlisted → remove it
             $existing->delete();
-
-            return response()->json([
-                'message'    => 'Removed from wishlist.',
-                'wishlisted' => false,
-            ]);
+            return response()->json(['message' => 'Removed from wishlist.', 'wishlisted' => false]);
         }
 
-        // Not wishlisted → add it
-        $wishlist = Wishlist::create([
-            'user_id'    => $userId,
-            'product_id' => $productId,
-        ]);
+        $data = ['product_id' => $productId];
+        if ($ownerId) {
+            $data['user_id'] = $ownerId;
+        } else {
+            $data['guest_token'] = $token;
+        }
+        Wishlist::create($data);
 
-        return response()->json([
-            'message'     => 'Added to wishlist.',
-            'wishlist_id' => $wishlist->id,
-            'wishlisted'  => true,
-        ], 201);
+        return response()->json(['message' => 'Added to wishlist.', 'wishlisted' => true], 201);
     }
 
-    // ── DELETE /api/wishlist/{wishlist}  [auth:sanctum] ──────────────────
-    // Removes a specific wishlist entry by its ID
+    // ── DELETE /api/wishlist/{wishlist} ───────────────────────────────────
     public function destroy(Request $request, Wishlist $wishlist)
     {
-        // Ownership check — only the owner can remove their wishlist item
-        if ($wishlist->user_id !== $request->user()->id) {
-            return response()->json([
-                'message' => 'Not found.',
-            ], 404);
+        if (! $this->owns($request, $wishlist)) {
+            return response()->json(['message' => 'Not found.'], 404);
         }
-
         $wishlist->delete();
-
-        return response()->json([
-            'message'    => 'Removed from wishlist.',
-            'wishlisted' => false,
-        ]);
+        return response()->json(['message' => 'Removed from wishlist.', 'wishlisted' => false]);
     }
 
-    // ── Private helper ────────────────────────────────────────────────────
-    private function formatProduct(?Product $product): ?array
+    // ── POST /api/wishlist/merge ─────────────────────────────────────────
+    public function merge(Request $request)
     {
-        if (! $product) {
-            return null;
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        $token = $request->input('guest_token');
+        if (! $token) {
+            return response()->json(['message' => 'No guest wishlist to merge.'], 400);
+        }
+
+        $guestItems = Wishlist::where('guest_token', $token)->get();
+
+        foreach ($guestItems as $guest) {
+            $existing = Wishlist::where('user_id', $user->id)
+                ->where('product_id', $guest->product_id)
+                ->first();
+
+            if (! $existing) {
+                $guest->update(['user_id' => $user->id, 'guest_token' => null]);
+            } else {
+                $guest->delete();
+            }
+        }
+
+        return response()->json(['message' => 'Wishlist merged successfully.']);
+    }
+
+    // ── Ownership check ──────────────────────────────────────────────────
+    private function owns(Request $request, Wishlist $wishlist): bool
+    {
+        if ($request->user() && $wishlist->user_id === $request->user()->id) return true;
+        if ($request->filled('guest_token') && $wishlist->guest_token === $request->guest_token) return true;
+        return false;
+    }
+
+    private function formatProduct(?Product $product): ?array
+    {
+        if (! $product) return null;
         return [
             'id'          => $product->id,
             'name'        => $product->name,
             'slug'        => $product->slug,
+            'description' => $product->description,
             'price'       => (float) $product->price,
             'stock'       => $product->stock,
-            'image_url'   => $product->image
-                                ? Storage::url($product->image)
-                                : null,
-            'category'    => $product->category ? [
-                'id'   => $product->category->id,
-                'name' => $product->category->name,
-            ] : null,
+            'image_url'   => $product->image ? Storage::url($product->image) : null,
+            'category'    => $product->category ? ['id' => $product->category->id, 'name' => $product->category->name, 'slug' => $product->category->slug] : null,
+            'created_at'  => $product->created_at->toDateTimeString(),
         ];
     }
 }
