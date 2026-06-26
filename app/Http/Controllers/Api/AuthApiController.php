@@ -28,13 +28,14 @@ class AuthApiController extends Controller
                 'role'     => 'customer',
             ]);
 
-            // $token = $user->createToken('api-token')->plainTextToken;
+            $token = $user->createToken('api-token')->plainTextToken;
             Auth::login($user);
             $request->session()->regenerate();
 
             return response()->json([
                 'message' => 'Account created successfully.',
                 'user'    => $this->formatUser($user),
+                'token'   => $token,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -70,11 +71,13 @@ class AuthApiController extends Controller
             ], 403);
         }
 
+        $token = $user->createToken('api-token')->plainTextToken;
         $request->session()->regenerate();
 
         return response()->json([
             'message' => 'Logged in successfully.',
             'user' => $this->formatUser($user),
+            'token' => $token,
         ]);
     }
 
