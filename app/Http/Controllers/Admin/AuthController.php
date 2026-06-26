@@ -35,17 +35,18 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             if (!Auth::user()->isAdmin()) {
                 Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
                 return back()->withErrors([
                     'email' => 'This account does not have admin access.',
-                ]);
+                ])->withInput();
             }
             $request->session()->regenerate();
             return redirect()->route('admin.dashboard');
         }
 
         return back()->withErrors([
-            'email' => 'No account found with this email.',
-            'password' => 'The password you entered is incorrect.',
+            'email' => 'These credentials do not match our records.',
         ])->withInput();
     }
 
