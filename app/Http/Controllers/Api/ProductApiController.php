@@ -28,23 +28,33 @@ class ProductApiController extends Controller
         ]);
     }
 
+    // ── GET /api/filters ─────────────────────────────────────────────────
+    public function filters()
+    {
+        return response()->json([
+            'genders'    => Product::whereNotNull('gender')->distinct()->pluck('gender'),
+            'brands'     => Product::whereNotNull('brand')->distinct()->pluck('brand'),
+            'types'      => Product::whereNotNull('type')->distinct()->pluck('type'),
+            'departments'=> Product::whereNotNull('department')->distinct()->pluck('department'),
+        ]);
+    }
+
     // ── GET /api/products ────────────────────────────────────────────────
-    // Supports:
-    //   ?search=phone          → search name + description
-    //   ?category_id=2         → filter by category
-    //   ?min_price=10          → price range floor
-    //   ?max_price=200         → price range ceiling
-    //   ?sort=newest           → newest (default)
-    //   ?sort=price_asc        → cheapest first
-    //   ?sort=price_desc       → most expensive first
-    //   ?sort=name_asc         → A–Z
-    //   ?per_page=12           → items per page (max 50)
     public function index(Request $request)
     {
-        $query = Product::with('category');
+        $query = Product::with('category')
+            ->withAvg('reviews', 'rating');
 
-        // Only show in-stock products to customers
-        $query->where('stock', '>', 0);
+        // In-stock filter — default true, pass in_stock=false to show all
+        $inStockOnly = $request->has('in_stock') ? $request->boolean('in_stock') : true;
+        if ($inStockOnly) {
+            $query->where('stock', '>', 0);
+        }
+
+        // New arrivals filter
+        if ($request->filled('is_new')) {
+            $query->where('is_new', $request->boolean('is_new'));
+        }
 
         // Search by name or description
         if ($request->filled('search')) {
@@ -60,10 +70,15 @@ class ProductApiController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        // Price range filter
-        if ($request->filled('min_price')) {
-            $query->where('price', '>=', (float) $request->min_price);
+        // Multi-value filters (comma-separated)
+        foreach (['gender', 'brand', 'type', 'department'] as $field) {
+            if ($request->filled($field)) {
+                $values = array_map('trim', explode(',', $request->$field));
+                $query->whereIn($field, $values);
+            }
         }
+
+        // Price range filter
         if ($request->filled('max_price')) {
             $query->where('price', '<=', (float) $request->max_price);
         }
@@ -73,7 +88,8 @@ class ProductApiController extends Controller
             'price_asc'  => $query->orderBy('price', 'asc'),
             'price_desc' => $query->orderBy('price', 'desc'),
             'name_asc'   => $query->orderBy('name', 'asc'),
-            default      => $query->latest(),  // newest
+            'rating'     => $query->orderBy('reviews_avg_rating', 'desc'),
+            default      => $query->latest(),
         };
 
         $perPage  = min((int) $request->get('per_page', 12), 50);
@@ -97,13 +113,11 @@ class ProductApiController extends Controller
 
         $formatted = $this->formatProduct($product);
 
-        // Rating summary
         $formatted['rating_avg']   = $product->reviews->count()
             ? round($product->reviews->avg('rating'), 1)
             : null;
         $formatted['rating_count'] = $product->reviews->count();
 
-        // Latest 10 reviews
         $formatted['reviews'] = $product->reviews
             ->sortByDesc('created_at')
             ->take(10)
@@ -116,7 +130,6 @@ class ProductApiController extends Controller
             ])
             ->values();
 
-        // Related products — same category, exclude self, max 4
         $formatted['related'] = Product::where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->where('stock', '>', 0)
@@ -140,11 +153,20 @@ class ProductApiController extends Controller
     {
         return [
             'id'          => $product->id,
+            'rating_avg'  => $product->reviews_avg_rating
+                ? round((float) $product->reviews_avg_rating, 1)
+                : null,
             'name'        => $product->name,
             'slug'        => $product->slug,
             'description' => $product->description,
             'price'       => (float) $product->price,
+            'sale_price'  => $product->sale_price ? (float) $product->sale_price : null,
             'stock'       => $product->stock,
+            'is_new'      => $product->is_new,
+            'gender'      => $product->gender,
+            'brand'       => $product->brand,
+            'type'        => $product->type,
+            'department'  => $product->department,
             'image_url'   => $product->image
                                 ? Storage::url($product->image)
                                 : null,
