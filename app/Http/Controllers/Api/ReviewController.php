@@ -5,9 +5,47 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\{Product, Review};
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
 class ReviewController extends Controller
 {
+    #[OA\Get(
+        path: '/api/products/{product}/reviews',
+        summary: 'List product reviews',
+        description: 'Retrieve paginated reviews for a specific product. Publicly accessible.',
+        tags: ['Reviews'],
+        operationId: 'reviewIndex',
+        parameters: [
+            new OA\Parameter(
+                name: 'product',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                description: 'Product ID'
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Successful operation',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'product_id', type: 'integer'),
+                        new OA\Property(property: 'product_name', type: 'string'),
+                        new OA\Property(property: 'rating_avg', type: 'number', format: 'float', nullable: true),
+                        new OA\Property(property: 'rating_count', type: 'integer'),
+                        new OA\Property(property: 'reviews', type: 'array', items: new OA\Items(ref: '#/components/schemas/Review')),
+                        new OA\Property(property: 'meta', properties: [
+                            new OA\Property(property: 'current_page', type: 'integer'),
+                            new OA\Property(property: 'last_page', type: 'integer'),
+                            new OA\Property(property: 'total', type: 'integer'),
+                        ], type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 404, description: 'Product not found'),
+        ]
+    )]
     // ── GET /api/products/{product}/reviews  [public] ────────────────────
     // Anyone can read reviews — no token required
     public function index(Product $product)
@@ -33,6 +71,49 @@ class ReviewController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/products/{product}/reviews',
+        summary: 'Create a review',
+        description: 'Submit a rating and comment for a product. One review per user per product.',
+        tags: ['Reviews'],
+        operationId: 'reviewStore',
+        security: [
+            ['sanctum' => []],
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'product',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                description: 'Product ID'
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['rating'],
+                properties: [
+                    new OA\Property(property: 'rating', type: 'integer', description: 'Rating 1-5', minimum: 1, maximum: 5),
+                    new OA\Property(property: 'comment', type: 'string', description: 'Review comment', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Review submitted successfully',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'review', ref: '#/components/schemas/Review'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     // ── POST /api/products/{product}/reviews  [auth:sanctum] ─────────────
     // Body: { "rating": 5, "comment": "Great product!" }
     // One review per user per product — enforced here and in DB unique index.
@@ -52,7 +133,7 @@ class ReviewController extends Controller
 
         if ($existing) {
             return response()->json([
-                'message' => 'You have already reviewed this product. Use PUT to update your review.',
+                'message' => 'You\'ve already reviewed this product. You can edit your existing review instead.',
                 'review'  => $this->formatReview($existing->load('user')),
             ], 422);
         }
@@ -67,11 +148,63 @@ class ReviewController extends Controller
         $review->load('user');
 
         return response()->json([
-            'message' => 'Review submitted successfully.',
+            'message' => 'Thank you! Your review has been submitted.',
             'review'  => $this->formatReview($review),
         ], 201);
     }
 
+    #[OA\Put(
+        path: '/api/products/{product}/reviews/{review}',
+        summary: 'Update a review',
+        description: 'Update the rating and/or comment of your own review.',
+        tags: ['Reviews'],
+        operationId: 'reviewUpdate',
+        security: [
+            ['sanctum' => []],
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'product',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                description: 'Product ID'
+            ),
+            new OA\Parameter(
+                name: 'review',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                description: 'Review ID'
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['rating'],
+                properties: [
+                    new OA\Property(property: 'rating', type: 'integer', description: 'Rating 1-5', minimum: 1, maximum: 5),
+                    new OA\Property(property: 'comment', type: 'string', description: 'Review comment', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Review updated successfully',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'review', ref: '#/components/schemas/Review'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden — not your review'),
+            new OA\Response(response: 404, description: 'Not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     // ── PUT /api/products/{product}/reviews/{review}  [auth:sanctum] ─────
     // Body: { "rating": 4, "comment": "Updated opinion" }
     // Users can edit only their own review.
@@ -87,7 +220,7 @@ class ReviewController extends Controller
         // Make sure the review belongs to this product
         if ($review->product_id !== $product->id) {
             return response()->json([
-                'message' => 'Review does not belong to this product.',
+                'message' => 'This review doesn\'t belong to this product.',
             ], 422);
         }
 
@@ -104,11 +237,52 @@ class ReviewController extends Controller
         $review->load('user');
 
         return response()->json([
-            'message' => 'Review updated successfully.',
+            'message' => 'Your review has been updated.',
             'review'  => $this->formatReview($review),
         ]);
     }
 
+    #[OA\Delete(
+        path: '/api/products/{product}/reviews/{review}',
+        summary: 'Delete a review',
+        description: 'Delete your own review. Only the review author can delete.',
+        tags: ['Reviews'],
+        operationId: 'reviewDestroy',
+        security: [
+            ['sanctum' => []],
+        ],
+        parameters: [
+            new OA\Parameter(
+                name: 'product',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                description: 'Product ID'
+            ),
+            new OA\Parameter(
+                name: 'review',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                description: 'Review ID'
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Review deleted',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Your review has been deleted.'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden — not your review'),
+            new OA\Response(response: 404, description: 'Not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     // ── DELETE /api/products/{product}/reviews/{review}  [auth:sanctum] ──
     // Users can delete only their own review.
     public function destroy(Request $request, Product $product, Review $review)
@@ -123,14 +297,14 @@ class ReviewController extends Controller
         // Make sure the review belongs to this product
         if ($review->product_id !== $product->id) {
             return response()->json([
-                'message' => 'Review does not belong to this product.',
+                'message' => 'This review doesn\'t belong to this product.',
             ], 422);
         }
 
         $review->delete();
 
         return response()->json([
-            'message' => 'Review deleted.',
+            'message' => 'Your review has been deleted.',
         ]);
     }
 
