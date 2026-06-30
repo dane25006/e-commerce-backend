@@ -96,13 +96,26 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
-    // Product.php
     protected $appends = ['image_url'];
 
     public function getImageUrlAttribute(): ?string
     {
         return $this->image
-            ? asset('storage/' . $this->image)
+            ? url('api/storage/' . $this->image)
             : null;
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    public function getImagesAttribute()
+    {
+        return $this->images()->get()->map(fn($img) => [
+            'id'       => $img->id,
+            'image_url'=> $img->image_url,
+            'sort_order' => $img->sort_order,
+        ]);
     }
 }

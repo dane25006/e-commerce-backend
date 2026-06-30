@@ -7,10 +7,28 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use OpenApi\Attributes as OA;
 
 class ProductApiController extends Controller
 {
     // ── GET /api/categories ──────────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/categories',
+        tags: ['Products'],
+    )]
+    #[OA\Response(
+        response: 200,
+        description: 'List of categories with products count',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(
+                    property: 'categories',
+                    type: 'array',
+                    items: new OA\Items(ref: '#/components/schemas/Category')
+                ),
+            ]
+        ),
+    )]
     public function categories()
     {
         $categories = Category::withCount('products')
@@ -29,6 +47,22 @@ class ProductApiController extends Controller
     }
 
     // ── GET /api/filters ─────────────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/filters',
+        tags: ['Products'],
+    )]
+    #[OA\Response(
+        response: 200,
+        description: 'Filter options',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'genders', type: 'array', items: new OA\Items(type: 'string')),
+                new OA\Property(property: 'brands', type: 'array', items: new OA\Items(type: 'string')),
+                new OA\Property(property: 'types', type: 'array', items: new OA\Items(type: 'string')),
+                new OA\Property(property: 'departments', type: 'array', items: new OA\Items(type: 'string')),
+            ]
+        ),
+    )]
     public function filters()
     {
         return response()->json([
@@ -40,6 +74,36 @@ class ProductApiController extends Controller
     }
 
     // ── GET /api/products ────────────────────────────────────────────────
+    #[OA\Get(
+        path: '/api/products',
+        tags: ['Products'],
+    )]
+    #[OA\Parameter(name: 'search', in: 'query', description: 'Search term', schema: new OA\Schema(type: 'string'))]
+    #[OA\Parameter(name: 'category_id', in: 'query', description: 'Category ID', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Parameter(name: 'gender', in: 'query', description: 'Gender filter (comma-separated)', schema: new OA\Schema(type: 'string'))]
+    #[OA\Parameter(name: 'brand', in: 'query', description: 'Brand filter (comma-separated)', schema: new OA\Schema(type: 'string'))]
+    #[OA\Parameter(name: 'type', in: 'query', description: 'Type filter (comma-separated)', schema: new OA\Schema(type: 'string'))]
+    #[OA\Parameter(name: 'department', in: 'query', description: 'Department filter (comma-separated)', schema: new OA\Schema(type: 'string'))]
+    #[OA\Parameter(name: 'max_price', in: 'query', description: 'Maximum price', schema: new OA\Schema(type: 'number'))]
+    #[OA\Parameter(name: 'in_stock', in: 'query', description: 'Filter by stock availability', schema: new OA\Schema(type: 'boolean'))]
+    #[OA\Parameter(name: 'is_new', in: 'query', description: 'Filter by new arrivals', schema: new OA\Schema(type: 'boolean'))]
+    #[OA\Parameter(name: 'sort', in: 'query', description: 'Sort order', schema: new OA\Schema(type: 'string', enum: ['newest', 'price_asc', 'price_desc', 'name_asc', 'rating']))]
+    #[OA\Parameter(name: 'per_page', in: 'query', description: 'Items per page', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Parameter(name: 'page', in: 'query', description: 'Page number', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(
+        response: 200,
+        description: 'Paginated product list',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(
+                    property: 'products',
+                    type: 'array',
+                    items: new OA\Items(ref: '#/components/schemas/ProductListItem')
+                ),
+                new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta'),
+            ]
+        ),
+    )]
     public function index(Request $request)
     {
         $query = Product::with('category')
@@ -107,9 +171,27 @@ class ProductApiController extends Controller
     }
 
     // ── GET /api/products/{product} ──────────────────────────────────────
+    #[OA\Get(
+        path: '/api/products/{product}',
+        tags: ['Products'],
+    )]
+    #[OA\Parameter(name: 'product', in: 'path', required: true, description: 'Product ID', schema: new OA\Schema(type: 'integer'))]
+    #[OA\Response(
+        response: 200,
+        description: 'Product detail with reviews and related products',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'product', ref: '#/components/schemas/Product'),
+            ]
+        ),
+    )]
+    #[OA\Response(
+        response: 404,
+        description: 'Product not found',
+    )]
     public function show(Product $product)
     {
-        $product->load(['category', 'reviews.user']);
+        $product->load(['category', 'reviews.user', 'images']);
 
         $formatted = $this->formatProduct($product);
 
@@ -167,9 +249,16 @@ class ProductApiController extends Controller
             'brand'       => $product->brand,
             'type'        => $product->type,
             'department'  => $product->department,
-            'image_url'   => $product->image
-                                ? Storage::url($product->image)
-                                : null,
+'image_url'   => $product->image
+                                    ? url('api/storage/' . $product->image)
+                                    : null,
+            'images'      => $product->relationLoaded('images')
+                                ? $product->images->map(fn($img) => [
+                                    'id'       => $img->id,
+                                    'image_url'=> $img->image_url,
+                                    'sort_order' => $img->sort_order,
+                                ])
+                                : [],
             'category'    => $product->category ? [
                 'id'   => $product->category->id,
                 'name' => $product->category->name,
