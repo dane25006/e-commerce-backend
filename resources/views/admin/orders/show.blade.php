@@ -33,11 +33,11 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
 
         {{-- Customer Info --}}
-        <div class="bg-white rounded-xl border border-slate-200 p-5 col-span-1">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 col-span-1 min-w-0">
             <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Customer</p>
-            <p class="font-semibold text-slate-800">{{ $order->user->name ?? '—' }}</p>
-            <p class="text-slate-500 text-sm mt-1">{{ $order->user->email ?? '—' }}</p>
-            <p class="text-slate-400 text-xs mt-3">Customer since {{ $order->user->created_at->format('M Y') ?? '' }}</p>
+            <p class="font-semibold text-slate-800 truncate" title="{{ $order->user->name ?? '' }}">{{ $order->user->name ?? '—' }}</p>
+            <p class="text-slate-500 text-sm mt-1 truncate" title="{{ $order->user->email ?? '' }}">{{ $order->user->email ?? '—' }}</p>
+            <p class="text-slate-400 text-xs mt-3 truncate">Customer since {{ $order->user->created_at->format('M Y') ?? '' }}</p>
         </div>
 
         {{-- Order Summary --}}
@@ -49,7 +49,7 @@
             </div>
             <div class="flex justify-between text-sm font-bold text-slate-800 pt-2 border-t border-slate-100">
                 <span>Total Amount</span>
-                <span>${{ number_format($order->total_amount, 2) }}</span>
+                <span>${{ number_format($order->total, 2) }}</span>
             </div>
         </div>
     </div>
@@ -101,7 +101,7 @@
                 <tr class="bg-slate-50 border-t border-slate-200">
                     <td colspan="3" class="px-6 py-4 text-right font-semibold text-slate-700">Total</td>
                     <td class="px-6 py-4 text-right font-bold text-slate-900 text-base">
-                        ${{ number_format($order->total_amount, 2) }}
+                        ${{ number_format($order->total, 2) }}
                     </td>
                 </tr>
             </tfoot>

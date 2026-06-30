@@ -31,7 +31,7 @@
                     <p class="text-slate-400 text-xs">{{ $order->user->email ?? '' }}</p>
                 </td>
                 <td class="px-6 py-4 text-slate-600">{{ $order->items_count ?? $order->items->count() }} items</td>
-                <td class="px-6 py-4 font-semibold text-slate-700">${{ number_format($order->total_amount, 2) }}</td>
+                <td class="px-6 py-4 font-semibold text-slate-700">${{ number_format($order->total, 2) }}</td>
                 <td class="px-6 py-4">
                     <span @class([
                         'text-xs font-medium px-2.5 py-1 rounded-full',
