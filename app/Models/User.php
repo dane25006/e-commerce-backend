@@ -3,7 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\TelegramLink;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -53,6 +56,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'google_id',
+        'avatar',
     ];
 
     protected $hidden = [
@@ -91,5 +96,15 @@ class User extends Authenticatable
     public function cartItems(): HasMany
     {
         return $this->hasMany(Cart::class);
+    }
+
+    public function promotions(): BelongsToMany
+    {
+        return $this->belongsToMany(Promotion::class)->withPivot('assigned_at')->withTimestamps();
+    }
+
+    public function telegramLink(): HasOne
+    {
+        return $this->hasOne(TelegramLink::class);
     }
 }
