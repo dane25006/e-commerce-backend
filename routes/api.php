@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\ProductApiController;
@@ -10,17 +9,7 @@ use App\Http\Controllers\Api\OrderApiController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\PromotionApiController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes — E-Commerce Backend
-|--------------------------------------------------------------------------
-| Public    → no token needed
-| Protected → Authorization: Bearer {token}
-*/
-
-// ═══════════════════════════════════════════════════════════════
-// PUBLIC — no token needed
-// ═══════════════════════════════════════════════════════════════
+// ── PUBLIC ────────────────────────────────────────────────────────────
 
 // Auth
 Route::post('register', [AuthApiController::class, 'register']);
@@ -29,6 +18,10 @@ Route::post('login',    [AuthApiController::class, 'login']);
 // Google OAuth
 Route::get('auth/google/redirect', [App\Http\Controllers\Api\GoogleSocialiteController::class, 'redirect']);
 Route::get('auth/google/callback', [App\Http\Controllers\Api\GoogleSocialiteController::class, 'callback']);
+
+// Serve storage files through API (CORS-enabled)
+Route::get('storage/{path}', [App\Http\Controllers\Api\StorageController::class, '__invoke'])
+    ->where('path', '.*');
 
 // Products & Categories
 Route::get('filters',                [ProductApiController::class, 'filters']);
@@ -56,30 +49,40 @@ Route::post  ('wishlist',            [WishlistController::class, 'store']);
 Route::post  ('wishlist/toggle',     [WishlistController::class, 'toggle']);
 Route::delete('wishlist/{wishlist}', [WishlistController::class, 'destroy']);
 
-// ═══════════════════════════════════════════════════════════════
-// PROTECTED — requires: Authorization: Bearer {token}
-// ═══════════════════════════════════════════════════════════════
+// Telegram webhook (no CSRF, called by Telegram)
+Route::post('telegram/webhook', [App\Http\Controllers\TelegramWebhookController::class, '__invoke'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
+// ── PROTECTED — auth:sanctum ───────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
-    // ── Auth ──────────────────────────────────────────────────
+    // Auth
     Route::post('logout',   [AuthApiController::class, 'logout']);
     Route::get ('profile',  [AuthApiController::class, 'profile']);
     Route::put ('profile',  [AuthApiController::class, 'updateProfile']);
     Route::put ('password', [AuthApiController::class, 'changePassword']);
 
-    // ── Merge guest data on login ─────────────────────────────
+    // Merge guest data on login
     Route::post('cart/merge',          [CartController::class, 'merge']);
     Route::post('wishlist/merge',      [WishlistController::class, 'merge']);
 
-    // ── Checkout & Orders ─────────────────────────────────────
+    // Checkout & Orders
     Route::post('checkout',                  [OrderApiController::class, 'checkout']);
     Route::get ('orders',                    [OrderApiController::class, 'index']);
     Route::get ('orders/{order}',            [OrderApiController::class, 'show']);
     Route::put ('orders/{order}/cancel',     [OrderApiController::class, 'cancel']);
 
-    // ── Reviews (write) ───────────────────────────────────────
+    // Reviews (write)
     Route::post  ('products/{product}/reviews',            [ReviewController::class, 'store']);
     Route::put   ('products/{product}/reviews/{review}',   [ReviewController::class, 'update']);
     Route::delete('products/{product}/reviews/{review}',   [ReviewController::class, 'destroy']);
-});
 
+    // Telegram
+    Route::get('telegram/link', [App\Http\Controllers\TelegramLinkController::class, 'generateLink']);
+    Route::post('telegram/generate', [App\Http\Controllers\TelegramLinkController::class, 'generate'])->name('telegram.generate');
+    Route::get('telegram/status', [App\Http\Controllers\TelegramLinkController::class, 'status']);
+    Route::post('telegram/toggle-notifications', [App\Http\Controllers\TelegramLinkController::class, 'toggleNotifications']);
+    Route::post('telegram/unlink', [App\Http\Controllers\TelegramLinkController::class, 'unlink']);
+    Route::delete('telegram/destroy', [App\Http\Controllers\TelegramLinkController::class, 'destroy'])->name('telegram.destroy');
+    Route::post('telegram/send-test', [App\Http\Controllers\TelegramLinkController::class, 'sendTest']);
+});
