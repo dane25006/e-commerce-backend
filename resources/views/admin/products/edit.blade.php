@@ -64,8 +64,8 @@
                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">{{ old('description', $product->description) }}</textarea>
                 </div>
 
-                {{-- Price + Stock --}}
-                <div class="grid grid-cols-2 gap-4">
+                {{-- Price + Sale Price + Stock --}}
+                <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label for="price" class="block text-sm font-medium text-slate-700 mb-1.5">
                             Price (USD) <span class="text-red-500">*</span>
@@ -78,6 +78,20 @@
                                    @error('price') border-red-400 bg-red-50 @else border-slate-300 @enderror" />
                         </div>
                         @error('price')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="sale_price" class="block text-sm font-medium text-slate-700 mb-1.5">Sale Price</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                            <input type="number" id="sale_price" name="sale_price" value="{{ old('sale_price', $product->sale_price) }}"
+                                min="0" step="0.01" placeholder="0.00"
+                                class="w-full pl-8 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+                                   @error('sale_price') border-red-400 bg-red-50 @else border-slate-300 @enderror" />
+                        </div>
+                        @error('sale_price')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>
@@ -96,16 +110,76 @@
                     </div>
                 </div>
 
-                {{-- Image --}}
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Product Image</label>
+                {{-- Perfume Details --}}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="brand" class="block text-sm font-medium text-slate-700 mb-1.5">Brand</label>
+                        <input type="text" id="brand" name="brand" value="{{ old('brand', $product->brand) }}"
+                            placeholder="e.g. Channel, Dior"
+                            class="w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+                                   @error('brand') border-red-400 bg-red-50 @else border-slate-300 @enderror" />
+                        @error('brand')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
+                    <div>
+                        <label for="gender" class="block text-sm font-medium text-slate-700 mb-1.5">Gender</label>
+                        <select id="gender" name="gender"
+                            class="w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+                                   @error('gender') border-red-400 bg-red-50 @else border-slate-300 @enderror">
+                            <option value="">— Select —</option>
+                            <option value="Men" {{ old('gender', $product->gender) == 'Men' ? 'selected' : '' }}>Men</option>
+                            <option value="Women" {{ old('gender', $product->gender) == 'Women' ? 'selected' : '' }}>Women</option>
+                            <option value="Unisex" {{ old('gender', $product->gender) == 'Unisex' ? 'selected' : '' }}>Unisex</option>
+                        </select>
+                        @error('gender')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="type" class="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
+                        <input type="text" id="type" name="type" value="{{ old('type', $product->type) }}"
+                            placeholder="e.g. Eau de Parfum, Eau de Toilette"
+                            class="w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+                                   @error('type') border-red-400 bg-red-50 @else border-slate-300 @enderror" />
+                        @error('type')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="department" class="block text-sm font-medium text-slate-700 mb-1.5">Department</label>
+                        <input type="text" id="department" name="department" value="{{ old('department', $product->department) }}"
+                            placeholder="e.g. Luxury, Everyday"
+                            class="w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+                                   @error('department') border-red-400 bg-red-50 @else border-slate-300 @enderror" />
+                        @error('department')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                {{-- Is New --}}
+                <div class="flex items-center gap-2">
+                    <input
+                        type="checkbox" id="is_new" name="is_new" value="1"
+                        {{ old('is_new', $product->is_new) ? 'checked' : '' }}
+                        class="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+                    />
+                    <label for="is_new" class="text-sm font-medium text-slate-700">Mark as New Arrival</label>
+                </div>
+
+                {{-- Main Image --}}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Main Image</label>
                     @if ($product->image)
                         <div class="flex items-center gap-4 mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                             <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}" id="image-preview"
                                 class="w-16 h-16 object-cover rounded-lg border border-slate-200" />
                             <div>
-                                <p class="text-xs font-medium text-slate-600">Current image</p>
+                                <p class="text-xs font-medium text-slate-600">Current main image</p>
                                 <p class="text-xs text-slate-400 mt-0.5">Upload a new image below to replace it</p>
                             </div>
                         </div>
@@ -113,7 +187,6 @@
                         <img id="image-preview" src="" alt="Preview"
                             class="hidden w-16 h-16 object-cover rounded-lg border border-slate-200 mb-3" />
                     @endif
-
                     <label for="image"
                         class="flex items-center justify-center w-full h-24 border-2 border-dashed border-slate-300
                               rounded-xl cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition-colors">
@@ -125,6 +198,40 @@
                             onchange="previewImage(this)" />
                     </label>
                     @error('image')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Gallery Images --}}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Gallery Images</label>
+                    @if ($product->images->count())
+                        <div class="flex gap-2 flex-wrap mb-3">
+                            @foreach ($product->images as $img)
+                                <div class="relative group">
+                                    <img src="{{ Storage::url($img->image) }}" alt="Gallery"
+                                        class="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                                    <label class="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                                        <input type="checkbox" name="delete_images[]" value="{{ $img->id }}"
+                                            class="w-4 h-4 rounded border-white text-red-500 focus:ring-red-500" />
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-slate-400 mb-2">Hover and check to delete gallery images</p>
+                    @endif
+                    <label for="gallery"
+                        class="flex items-center justify-center w-full h-24 border-2 border-dashed border-slate-300
+                              rounded-xl cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition-colors">
+                        <div class="text-center">
+                            <p class="text-slate-400 text-sm">Click to add more gallery images</p>
+                            <p class="text-slate-300 text-xs mt-0.5">You can select multiple images</p>
+                        </div>
+                        <input type="file" id="gallery" name="gallery[]" accept="image/*" class="hidden" multiple
+                            onchange="previewGallery(this)" />
+                    </label>
+                    <div id="gallery-previews" class="flex gap-2 mt-2 flex-wrap"></div>
+                    @error('gallery.*')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
                 </div>
@@ -192,6 +299,21 @@
                     preview.classList.remove('hidden');
                 };
                 reader.readAsDataURL(input.files[0]);
+            }
+        }
+        function previewGallery(input) {
+            const container = document.getElementById('gallery-previews');
+            if (input.files) {
+                for (const file of input.files) {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'w-16 h-16 object-cover rounded-lg border border-slate-200';
+                        container.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                }
             }
         }
     </script>

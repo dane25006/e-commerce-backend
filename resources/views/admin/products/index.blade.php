@@ -26,6 +26,10 @@
                     </th>
                     <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Category
                     </th>
+                    <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Brand
+                    </th>
+                    <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Gender
+                    </th>
                     <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Price
                     </th>
                     <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Stock
@@ -63,7 +67,25 @@
                                 {{ $product->category->name ?? '—' }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 font-semibold text-slate-700">${{ number_format($product->price, 2) }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-600">{{ $product->brand ?? '—' }}</td>
+                        <td class="px-6 py-4">
+                            @if($product->gender)
+                                <span class="text-xs font-medium px-2.5 py-1 rounded-full
+                                    {{ $product->gender === 'Women' ? 'bg-pink-50 text-pink-700' : ($product->gender === 'Men' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700') }}">
+                                    {{ $product->gender }}
+                                </span>
+                            @else
+                                <span class="text-xs text-slate-400">—</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-4 font-semibold text-slate-700">
+                            @if($product->sale_price)
+                                <span class="text-red-500">${{ number_format($product->sale_price, 2) }}</span>
+                                <span class="text-xs text-slate-400 line-through ml-1">${{ number_format($product->price, 2) }}</span>
+                            @else
+                                ${{ number_format($product->price, 2) }}
+                            @endif
+                        </td>
                         <td class="px-6 py-4">
                             <span @class([
                                 'text-xs font-medium px-2.5 py-1 rounded-full',
@@ -91,7 +113,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-16 text-center">
+                        <td colspan="7" class="px-6 py-16 text-center">
                             <svg class="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
