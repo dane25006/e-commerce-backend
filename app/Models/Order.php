@@ -40,6 +40,10 @@ class Order extends Model
         'payment_method',
     ];
 
+    protected $hidden = [
+        'user_id',
+    ];
+
     protected $casts = [
         'total' => 'decimal:2',
     ];

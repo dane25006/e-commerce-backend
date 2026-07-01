@@ -45,8 +45,8 @@ class WishlistController extends Controller
     {
         $query = Wishlist::with('product.category');
 
-        if ($request->user()) {
-            $query->where('user_id', $request->user()->id);
+        if ($request->user('sanctum')) {
+            $query->where('user_id', $request->user('sanctum')->id);
         } elseif ($request->filled('guest_token')) {
             $query->where('guest_token', $request->guest_token);
         } else {
@@ -102,7 +102,7 @@ class WishlistController extends Controller
         $request->validate(['product_id' => ['required', 'exists:products,id']]);
 
         $productId = $request->product_id;
-        $ownerId   = $request->user() ? $request->user()->id : null;
+        $ownerId   = $request->user('sanctum') ? $request->user('sanctum')->id : null;
         $token     = $ownerId ? null : $request->input('guest_token');
 
         if (! $ownerId && ! $token) {
@@ -179,7 +179,7 @@ class WishlistController extends Controller
         $request->validate(['product_id' => ['required', 'exists:products,id']]);
 
         $productId = $request->product_id;
-        $ownerId   = $request->user() ? $request->user()->id : null;
+        $ownerId   = $request->user('sanctum') ? $request->user('sanctum')->id : null;
         $token     = $ownerId ? null : $request->input('guest_token');
 
         if (! $ownerId && ! $token) {
@@ -291,7 +291,7 @@ class WishlistController extends Controller
     // ── POST /api/wishlist/merge ─────────────────────────────────────────
     public function merge(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user('sanctum');
         if (! $user) {
             return response()->json(['message' => 'Please sign in to continue.'], 401);
         }
@@ -321,7 +321,7 @@ class WishlistController extends Controller
     // ── Ownership check ──────────────────────────────────────────────────
     private function owns(Request $request, Wishlist $wishlist): bool
     {
-        if ($request->user() && $wishlist->user_id === $request->user()->id) return true;
+        if ($request->user('sanctum') && $wishlist->user_id === $request->user('sanctum')->id) return true;
         if ($request->filled('guest_token') && $wishlist->guest_token === $request->guest_token) return true;
         return false;
     }
