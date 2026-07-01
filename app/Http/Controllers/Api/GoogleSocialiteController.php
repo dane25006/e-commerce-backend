@@ -24,6 +24,6 @@ class GoogleSocialiteController extends Controller
             return redirect(config('app.frontend_url') . '/login?error=' . urlencode($result['message']));
         }
 
-        return redirect(config('app.frontend_url') . '/?auth_token=' . $result['token']);
+        return redirect(config('app.frontend_url') . '/auth/callback?token=' . urlencode($result['token']));
     }
 }
