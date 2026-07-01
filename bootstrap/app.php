@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withEvents(discover: [
         __DIR__ . '/../app/Listeners',
     ])
+    ->withProviders([
+        \App\Providers\TelegramServiceProvider::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
 
@@ -24,7 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'admin' => \App\Http\Middleware\IsAdmin::class,
+            'admin'                => \App\Http\Middleware\IsAdmin::class,
+            'telegram.webhook-auth'=> \App\Http\Middleware\TelegramWebhookAuth::class,
+            'telegram.rate-limit'  => \App\Http\Middleware\TelegramRateLimit::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
