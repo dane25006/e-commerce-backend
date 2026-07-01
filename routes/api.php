@@ -50,7 +50,8 @@ Route::post  ('wishlist/toggle',     [WishlistController::class, 'toggle']);
 Route::delete('wishlist/{wishlist}', [WishlistController::class, 'destroy']);
 
 // Telegram webhook (no CSRF, called by Telegram)
-Route::post('telegram/webhook', [App\Http\Controllers\Api\TelegramController::class, 'webhook'])
+Route::post('telegram/webhook', [App\Http\Controllers\TelegramWebhookController::class, 'handle'])
+    ->middleware(['telegram.webhook-auth', 'telegram.rate-limit'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // ── PROTECTED — auth:sanctum ───────────────────────────────────────────
