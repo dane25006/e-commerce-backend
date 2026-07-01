@@ -50,7 +50,7 @@ Route::post  ('wishlist/toggle',     [WishlistController::class, 'toggle']);
 Route::delete('wishlist/{wishlist}', [WishlistController::class, 'destroy']);
 
 // Telegram webhook (no CSRF, called by Telegram)
-Route::post('telegram/webhook', [App\Http\Controllers\TelegramWebhookController::class, '__invoke'])
+Route::post('telegram/webhook', [App\Http\Controllers\Api\TelegramController::class, 'webhook'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // ── PROTECTED — auth:sanctum ───────────────────────────────────────────
@@ -78,11 +78,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('products/{product}/reviews/{review}',   [ReviewController::class, 'destroy']);
 
     // Telegram
-    Route::get('telegram/link', [App\Http\Controllers\TelegramLinkController::class, 'generateLink']);
-    Route::post('telegram/generate', [App\Http\Controllers\TelegramLinkController::class, 'generate'])->name('telegram.generate');
-    Route::get('telegram/status', [App\Http\Controllers\TelegramLinkController::class, 'status']);
-    Route::post('telegram/toggle-notifications', [App\Http\Controllers\TelegramLinkController::class, 'toggleNotifications']);
-    Route::post('telegram/unlink', [App\Http\Controllers\TelegramLinkController::class, 'unlink']);
-    Route::delete('telegram/destroy', [App\Http\Controllers\TelegramLinkController::class, 'destroy'])->name('telegram.destroy');
-    Route::post('telegram/send-test', [App\Http\Controllers\TelegramLinkController::class, 'sendTest']);
+    Route::get('telegram/status',                [App\Http\Controllers\Api\TelegramController::class, 'status']);
+    Route::get('telegram/connect',               [App\Http\Controllers\Api\TelegramController::class, 'generateCode']);
+    Route::post('telegram/generate',             [App\Http\Controllers\Api\TelegramController::class, 'generateCode']);
+    Route::post('telegram/toggle-notifications', [App\Http\Controllers\Api\TelegramController::class, 'toggleNotifications']);
+    Route::post('telegram/unlink',               [App\Http\Controllers\Api\TelegramController::class, 'unlink']);
+    Route::delete('telegram/destroy',            [App\Http\Controllers\Api\TelegramController::class, 'unlink']);
+    Route::post('telegram/send-test',            [App\Http\Controllers\Api\TelegramController::class, 'sendTest']);
 });
