@@ -34,6 +34,6 @@ class TelegramLink extends Model
 
     public static function generateVerificationCode(): string
     {
-        return Str::random(32);
+        return 'TG-' . strtoupper(Str::random(6));
     }
 }

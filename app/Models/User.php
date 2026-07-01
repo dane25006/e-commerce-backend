@@ -58,6 +58,12 @@ class User extends Authenticatable
         'role',
         'google_id',
         'avatar',
+        'telegram_id',
+        'telegram_username',
+        'language',
+        'is_bot_admin',
+        'last_activity_at',
+        'registered_at',
     ];
 
     protected $hidden = [
@@ -67,15 +73,36 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'password'          => 'hashed',
+        'is_bot_admin'      => 'boolean',
+        'last_activity_at'  => 'datetime',
+        'registered_at'     => 'datetime',
     ];
 
-    /**
-     * Check if the user is an admin.
-     */
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function isBotAdmin(): bool
+    {
+        return $this->is_bot_admin || $this->role === 'admin';
+    }
+
+    public static function findByTelegramId(string $telegramId): ?self
+    {
+        return static::where('telegram_id', $telegramId)->first();
+    }
+
+    public static function findByTelegramChatId(string $chatId): ?self
+    {
+        return static::whereHas('telegramLink', fn($q) => $q->where('telegram_chat_id', $chatId))
+            ->first();
+    }
+
+    public function isLinkedToTelegram(): bool
+    {
+        return $this->telegramLink()->whereNotNull('verified_at')->exists();
     }
 
     public function orders(): HasMany
@@ -106,5 +133,10 @@ class User extends Authenticatable
     public function telegramLink(): HasOne
     {
         return $this->hasOne(TelegramLink::class);
+    }
+
+    public function chatLogs(): HasMany
+    {
+        return $this->hasMany(ChatLog::class);
     }
 }
