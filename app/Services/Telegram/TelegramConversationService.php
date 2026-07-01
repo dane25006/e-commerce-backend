@@ -10,22 +10,35 @@ class TelegramConversationService
 {
     /** Intent definitions with keyword patterns */
     protected array $intents = [
-        'greeting'   => ['hi', 'hello', 'hey', 'yo', 'sup', 'good morning', 'good evening', 'good afternoon'],
-        'thanks'     => ['thanks', 'thank you', 'thx', 'ty', 'appreciate', 'thank'],
-        'orders'     => ['my orders', 'my order', 'orders', 'order list', 'show orders', 'list orders', 'recent orders'],
-        'latest_order' => ['latest order', 'last order', 'most recent order', 'recent order'],
-        'track'      => ['track', 'tracking', 'where is my', "where's my", 'shipping status', 'arriving', 'delivery status'],
-        'order_status' => ['order status', 'status of my order', 'is my order', 'order update'],
-        'today_orders' => ["today's orders", 'today order', 'ordered today'],
-        'yesterday_orders' => ["yesterday's orders", 'yesterday order'],
-        'total_spent' => ['how much', 'total spent', 'paid', 'how much did i pay', 'total amount', 'spent'],
-        'profile'    => ['my profile', 'profile', 'my account', 'account info', 'who am i'],
-        'address'    => ['my address', 'shipping address', 'delivery address', 'my shipping', 'address'],
-        'support'    => ['support', 'contact', 'help me', 'talk to someone', 'customer service', 'agent', 'speak to'],
-        'help'       => ['help', 'commands', 'what can you do', 'guide', 'tutorial'],
-        'products'   => ['products', 'shop', 'browse', 'catalog', 'new arrivals', 'latest products', 'what do you sell'],
-        'promotions' => ['promotions', 'discount', 'sale', 'deal', 'coupon', 'offer', 'promo'],
-        'goodbye'    => ['bye', 'goodbye', 'see you', 'later', 'cya', 'take care'],
+        'greeting'   => ['hi', 'hello', 'hey', 'yo', 'sup', 'good morning', 'good evening', 'good afternoon', 'whats up', 'howdy'],
+        'thanks'     => ['thanks', 'thank you', 'thx', 'ty', 'appreciate', 'thank', 'thanks a lot', 'much appreciated'],
+        'orders'     => [
+            'my orders', 'my order', 'orders', 'order list', 'show orders', 'list orders', 'recent orders',
+            'all orders', 'view orders', 'my purchases', 'purchases',
+        ],
+        'latest_order' => ['latest order', 'last order', 'most recent order', 'recent order', 'my last order'],
+        'track'      => [
+            'track', 'tracking', 'where is my', "where's my", 'shipping status', 'arriving', 'delivery status',
+            'shipment', 'package', 'when will it arrive', 'estimated delivery', 'delivery date',
+        ],
+        'order_status' => ['order status', 'status of my order', 'is my order', 'order update', 'update on my order'],
+        'today_orders' => ["today's orders", 'today order', 'ordered today', 'placed today'],
+        'yesterday_orders' => ["yesterday's orders", 'yesterday order', 'ordered yesterday'],
+        'total_spent' => ['how much', 'total spent', 'paid', 'how much did i pay', 'total amount', 'spent', 'money spent'],
+        'profile'    => ['my profile', 'profile', 'my account', 'account info', 'who am i', 'my details', 'account details'],
+        'address'    => ['my address', 'shipping address', 'delivery address', 'my shipping', 'address', 'where to ship'],
+        'support'    => [
+            'support', 'contact', 'help me', 'talk to someone', 'customer service', 'agent', 'speak to',
+            'talk to agent', 'real person', 'human', 'complaint', 'issue', 'problem with order',
+        ],
+        'help'       => ['help', 'commands', 'what can you do', 'guide', 'tutorial', 'available commands', 'what do you do'],
+        'products'   => [
+            'products', 'shop', 'browse', 'catalog', 'new arrivals', 'latest products', 'what do you sell',
+            'what products', 'your products', 'collection',
+        ],
+        'promotions' => ['promotions', 'discount', 'sale', 'deal', 'coupon', 'offer', 'promo', 'discounts', 'on sale'],
+        'goodbye'    => ['bye', 'goodbye', 'see you', 'later', 'cya', 'take care', 'see ya', 'talk later'],
+        'cancel'     => ['cancel', 'cancel order', 'cancel my order', 'i want to cancel', 'stop order', 'remove order', 'abort'],
     ];
 
     /** @return array{intent: string, confidence: float, order_id: int|null} */

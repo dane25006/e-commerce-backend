@@ -2,7 +2,7 @@
 
 namespace App\Services\Telegram;
 
-use App\Jobs\SendTelegramMessageJob;
+use App\Jobs\Telegram\SendTelegramMessageJob;
 use App\Models\Order;
 use App\Models\TelegramLink;
 use App\Notifications\Telegram\OrderCancelled;
@@ -15,83 +15,59 @@ use App\Notifications\Telegram\OrderShipped;
 class TelegramNotificationService
 {
     public function __construct(
-        protected TelegramBotService $bot
+        protected TelegramBotService $bot,
+        protected TelegramAdminService $admin
     ) {}
 
     public function orderPlaced(Order $order): void
     {
-        $link = $this->getLink($order->user_id);
-        if (! $link) return;
-
         $order->loadMissing(['items.product', 'user']);
-        $text = OrderConfirmation::build($order);
-        $buttons = OrderConfirmation::buttons($order);
 
-        SendTelegramMessageJob::dispatch($link->telegram_chat_id, $text, $buttons);
+        $this->sendToCustomer($order, OrderConfirmation::class);
+        $this->admin->sendNewOrderAlert($order, '🆕 New Order');
     }
 
     public function orderProcessing(Order $order): void
     {
-        $link = $this->getLink($order->user_id);
-        if (! $link) return;
-
         $order->loadMissing(['items.product', 'user']);
-        SendTelegramMessageJob::dispatch(
-            $link->telegram_chat_id,
-            OrderProcessing::build($order),
-            OrderProcessing::buttons($order)
-        );
+        $this->sendToCustomer($order, OrderProcessing::class);
     }
 
     public function orderShipped(Order $order): void
     {
-        $link = $this->getLink($order->user_id);
-        if (! $link) return;
-
         $order->loadMissing(['items.product', 'user']);
-        SendTelegramMessageJob::dispatch(
-            $link->telegram_chat_id,
-            OrderShipped::build($order),
-            OrderShipped::buttons($order)
-        );
+        $this->sendToCustomer($order, OrderShipped::class);
     }
 
     public function orderOutForDelivery(Order $order): void
     {
-        $link = $this->getLink($order->user_id);
-        if (! $link) return;
-
         $order->loadMissing(['items.product', 'user']);
-        SendTelegramMessageJob::dispatch(
-            $link->telegram_chat_id,
-            OrderOutForDelivery::build($order),
-            OrderOutForDelivery::buttons($order)
-        );
+        $this->sendToCustomer($order, OrderOutForDelivery::class);
     }
 
     public function orderDelivered(Order $order): void
     {
-        $link = $this->getLink($order->user_id);
-        if (! $link) return;
-
         $order->loadMissing(['items.product', 'user']);
-        SendTelegramMessageJob::dispatch(
-            $link->telegram_chat_id,
-            OrderDelivered::build($order),
-            OrderDelivered::buttons($order)
-        );
+        $this->sendToCustomer($order, OrderDelivered::class);
     }
 
     public function orderCancelled(Order $order): void
     {
+        $order->loadMissing(['items.product', 'user']);
+
+        $this->sendToCustomer($order, OrderCancelled::class);
+        $this->admin->sendNewOrderAlert($order, '❌ Order Cancelled');
+    }
+
+    protected function sendToCustomer(Order $order, string $notificationClass): void
+    {
         $link = $this->getLink($order->user_id);
         if (! $link) return;
 
-        $order->loadMissing(['items.product', 'user']);
         SendTelegramMessageJob::dispatch(
             $link->telegram_chat_id,
-            OrderCancelled::build($order),
-            OrderCancelled::buttons($order)
+            $notificationClass::build($order),
+            $notificationClass::buttons($order)
         );
     }
 
